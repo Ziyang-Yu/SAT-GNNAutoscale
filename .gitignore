@@ -1,0 +1,4 @@
+setup.cfg
+small_benchmark/.main.py.swp
+small_benchmark/attached
+torch_geometric_autoscale/models/.base.py.swp
