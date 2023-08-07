@@ -14,8 +14,8 @@ from torch_geometric.nn import GCN, MLP
 
 from torch_geometric.nn import GCNConv
 import sys
-sys.path.append('/workspace/home/ubuntu/digest_yzy')
-from torch_geometric_autoscale.auxiliary_models.lstm_gcn import lstm_gcn
+# sys.path.append('/workspace/home/ubuntu/digest_yzy')
+from torch_geometric_autoscale.auxiliary_models import LSTM_GCN
 
 torch.use_deterministic_algorithms(True)
 
@@ -81,7 +81,7 @@ class ScalableGNN(torch.nn.Module):
 
         
         for i in range(0, num_layers-1):
-            self.auxiliary_models.append(lstm_gcn(input_size=hidden_channels, hidden_size=hidden_channels, num_layers_gcn=2).to(device))
+            self.auxiliary_models.append(LSTM_GCN(input_size=hidden_channels, hidden_size=hidden_channels, num_layers_gcn=2).to(device))
         
         """
         for i in range(0, len(self.auxiliary_models)):
@@ -233,31 +233,9 @@ class ScalableGNN(torch.nn.Module):
             pull_data = self.histories[layer_num].pull().clone().cpu()
             self.history_series_nums[layer_num].push(pull_data.detach().clone().cpu())
             self.corrected_history_series_nums[layer_num].push(pull_data.detach().clone().cpu())
-            
-            
-            #length = len(history.pull(n_id[batch_size:]).detach())
-            #hist_precorrect = h.clone().detach()
+
             h = history.pull(n_id[batch_size:])
 
-            #print(h)
-            #for param in self.auxiliary_models[layer_num].parameters():
-            #    param.requires_grad = True # or True
-            #h.requires_grad = True
-            #print('inner:', torch.size(torch.cat([x[:batch_size], h.detach()], dim=0)))
-            """
-            adj_t_row = adj_t.storage.row().detach()
-            adj_t_col = adj_t.storage.col().detach()
-            length = len(torch.cat([x[:batch_size], h.detach()], dim=0))
-            iso_nodes = torch.arange(adj_t_row[-1]+1, length)
-            adj_t_row = torch.cat((adj_t_row, iso_nodes.to(self.device)))
-            adj_t_col = torch.cat((adj_t_col, iso_nodes.to(self.device)))
-            auxiliary_adj_t = SparseTensor(rowptr=None, row=adj_t_row, col=adj_t_col, 
-                                           value=None, sparse_sizes=(len(torch.cat([x[:batch_size], h.detach()], dim=0)),
-                                           len(torch.cat([x[:batch_size], h.detach()], dim=0))), is_sorted=True).detach()
-            """
-            # print(auxiliary_adj_t)
-
-            #self.hist_precorrect_list.append(h.clone().detach())
             if len(self.history_series_nums[layer_num].pull()) >= 5:
                 input_aux = torch.stack(self.history_series_nums[layer_num].pull()[-5:])
                 input_aux = input_aux.index_select(1, n_id.cpu()).detach().to(self.device)
@@ -265,39 +243,17 @@ class ScalableGNN(torch.nn.Module):
                 input_aux = torch.stack(self.history_series_nums[layer_num].pull())
                 input_aux = input_aux.index_select(1, n_id.cpu()).detach().to(self.device)
 
-            #print("input_aux.size()", input_aux.size())
-            #print("subgraph_adj", subgraph_adj)
-            #print(input.size())
             self.auxiliary_models[layer_num] = self.auxiliary_models[layer_num].cuda()
-            #input_aux = input_aux.to(self.auxiliary_models[layer_num].device)
-            #subgraph_adj = subgraph_adj.to(self.auxiliary_models[layer_num].device)
+
             output = self.auxiliary_models[layer_num](input_aux, subgraph_adj)
-            #output = conv(input, adj_t)
-            #print('size_output: ', output.size())
-            #print(batch_size, output.size(), len(n_id)) 
+
             h = output[batch_size:]
-            self.corrected_history_series_nums[layer_num].push_embeddings(n_id[batch_size:], h.clone().cpu())
+            self.corrected_history_series_nums[layer_num].push_embeddings(n_id[batch_size:], h.cpu())
 
-            #print(55555555555555)
-            #print('size: ', h.size())
-            #h = self.auxiliary_models[layer_num](torch.cat([x[:batch_size].clone().detach(), h.detach()], dim=0).detach(), auxiliary_adj_t)[batch_size:]
-            #h.mean().backward(retain_graph=True)
-            #for param in self.parameters():
-            #    print('grad: ',param.grad)
+            # print(f"require grad {h.detach().requires_grad}")
             
             
-            #make_dot(h.mean(), params=dict(self.named_parameters()), show_attrs=True, show_saved=True).render("/workspace/home/ubuntu/digest_yzy-1/pyg_autoscale/small_benchmark/attached", format="png")
-            #print(h.requires_grad)
-            #hist_corrected = h.clone()
-            
-
-            
-            #h = h.detach()
-            #self.hist_precorrect_list.append(h.detach())
-            #self.hist_corrected_list.append(h.clone())
-            
-            
-            return torch.cat([x[:batch_size], h.clone().detach()], dim=0)
+            return torch.cat([x[:batch_size], h.detach()], dim=0)
 
         else:
             # need revise

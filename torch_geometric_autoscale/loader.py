@@ -105,7 +105,7 @@ class SubgraphLoader(DataLoader):
         sub_graph_nx = nx.relabel_nodes(sub_graph_nx, relabel_dict)
         sub_graph = from_networkx(sub_graph_nx)
         sub_graph_adj_t = SparseTensor(row=sub_graph.edge_index[0], col=sub_graph.edge_index[1])
-        print(sub_graph_adj_t)
+        # print(sub_graph_adj_t)
 
 
         data = self.data.__class__(adj_t=adj_t)

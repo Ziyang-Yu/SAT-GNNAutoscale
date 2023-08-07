@@ -12,6 +12,8 @@ import time
 import os
 import numpy as np
 
+torch.autograd.set_detect_anomaly(True)
+
 torch.manual_seed(123)
 criterion = torch.nn.CrossEntropyLoss()
 criterion_auxiliary = torch.nn.MSELoss()
@@ -70,9 +72,12 @@ def train_aux(model, optimizer, grad_norm=None):
         aux_loss.backward(retain_graph=True)
         total_aux_loss += aux_loss.detach().cpu().numpy()
         total_hist_loss += hist_loss.detach().cpu().numpy()
-        while(model.history_series_nums[i].length>5):
-            model.corrected_history_series_nums[i].pop(0)
-            model.history_series_nums[i].pop(0)
+
+    for history in model.corrected_history_series_nums:
+        history.reset_parameters()
+
+    for history in model.history_series_nums:
+        history.reset_parameters()
     
     for auxiliary_model in model.auxiliary_models:
         if grad_norm is not None:
@@ -140,7 +145,8 @@ def main(conf):
     pbar = tqdm(total=params.runs * params.epochs)
     
     time_now = str(time.strftime("%Y_%m_%d_%H_%I_%S", time.localtime(time.time())))
-    mkdir_path = '/home/ubuntu/digest_yzy/pyg_autoscale/small_benchmark/' + time_now
+    mkdir_path = os.path.join(os.getcwd(), time_now)
+    print(mkdir_path)
     os.mkdir(mkdir_path)
     for run in range(params.runs):
         model.reset_parameters()
